@@ -1,0 +1,11 @@
+/home/harlan/PageRank/PageRank.Runtime/obj/Debug/.NETFramework,Version=v4.5.AssemblyAttribute.fs
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/PageRank.Runtime.exe.mdb
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/PageRank.Runtime.exe
+/home/harlan/PageRank/PageRank.Runtime/obj/Debug/PageRank.Runtime.exe
+/home/harlan/PageRank/PageRank.Runtime/obj/Debug/PageRank.Runtime.exe.mdb
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/PageRank.exe
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/PageRank.exe.mdb
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/FSharp.Data.dll
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/index.html
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/PageRank.Front.exe
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/PageRank.Front.exe.mdb

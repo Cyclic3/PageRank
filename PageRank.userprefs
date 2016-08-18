@@ -1,0 +1,19 @@
+﻿<Properties StartupItem="PageRank.Front/PageRank.Front.fsproj">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Component1.fs">
+    <Files>
+      <File FileName="Component1.fs" Line="132" Column="108" />
+      <File FileName="PageRank.Front/Program.fs" Line="10" Column="31" />
+      <File FileName="Script.fsx" Line="5" Column="48" />
+      <File FileName="PageRank.Front/index.html" Line="15" Column="11" />
+      <File FileName="PageRank.Front/header.txt" Line="5" Column="1" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore>
+      <Breakpoint file="/home/harlan/PageRank/Crawler/Program.fs" line="68" column="1" />
+      <Breakpoint file="/home/harlan/PageRank/PageRank.Front/Program.fs" line="11" column="1" />
+    </BreakpointStore>
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>

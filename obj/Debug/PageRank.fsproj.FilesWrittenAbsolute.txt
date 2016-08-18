@@ -1,0 +1,6 @@
+/home/harlan/PageRank/obj/Debug/.NETFramework,Version=v4.5.AssemblyAttribute.fs
+/home/harlan/PageRank/bin/Debug/PageRank.exe.mdb
+/home/harlan/PageRank/bin/Debug/PageRank.exe
+/home/harlan/PageRank/obj/Debug/PageRank.exe
+/home/harlan/PageRank/obj/Debug/PageRank.exe.mdb
+/home/harlan/PageRank/bin/Debug/FSharp.Data.dll

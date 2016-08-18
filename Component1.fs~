@@ -1,0 +1,65 @@
+﻿namespace PageRank
+[<AutoOpen>]
+module Core =
+    type Page = string//|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z
+    type Rank = System.Decimal
+    let acc = ref 0L
+    let incr() = System.Threading.Interlocked.Increment(acc) |> ignore
+    //type Page = int
+    let PageRank(pages : Map<Page,Page[]>, max) = 
+        let N = System.Decimal(pages.Count)
+        let d = 0.85m
+        let rec rank : Page * Map<_,_> * int -> Rank = function
+            |_,_,0 -> incr();1m
+            |pi,p,t -> 
+                incr()
+                let v = 
+                    (function 
+                    |pj,[||] -> rank(pj, pages.Remove pj, t-1)
+                    |pj,i -> if Array.contains pi i then rank(pj, pages.Remove pj, t-1) / (System.Decimal(i.Length)) else 0m
+                    ) 
+                    |> Array.Parallel.map <| (Map.toArray p)
+                    |> Array.sum
+                (1m - d) + (d * v)
+        Array.Parallel.map (fun (i,_) -> i,rank(i, Map.remove i pages, max)) (Map.toArray pages) |> Map.ofArray
+module Agents = 
+    open FSharp.Data
+    let HTMLagent(uri:string,t:System.Threading.CancellationToken) = 
+        let e = new Event<string*string[]>()
+        let d = System.Collections.Generic.HashSet<_>()
+        let e' = e.Publish
+        let mutex = new System.Threading.Mutex()
+        let asyncAdd(uri:string) = async{lock d (fun()-> d.Add uri)|>ignore}
+        let rec agent(uri:string) = 
+            async{
+                try
+                    t.ThrowIfCancellationRequested()
+                    if not(d.Contains uri) then //&& not(t.IsCancellationRequested)
+                        do! asyncAdd uri
+                        do! Async.SwitchToNewThread()
+                        let c = new System.Net.WebClient()
+                        let r = uri|>c.OpenRead|>HtmlDocument.Load
+                        //Get all links
+                        let links = 
+                            r.Descendants ["a"] 
+                            |> Array.ofSeq
+                            |> Array.Parallel.choose(fun v -> 
+                                v.TryGetAttribute("href")
+                                |>Option.map(fun v ->
+                                    t.ThrowIfCancellationRequested()
+                                    let v = v.Value()
+                                    let v' = 
+                                        if v.[0] = '/' then uri.[..uri.IndexOf('/',8)-1]+v
+                                        elif v.[0] = '#' then uri
+                                        else v
+                                    v'
+                                    |> agent
+                                    |> Async.Start
+                                    v'
+                                )
+                            )
+                            //|>Array.ofSeq
+                        e.Trigger(uri,links)
+                with |_ -> printfn "!%A" uri
+            }
+        agent(uri),e'

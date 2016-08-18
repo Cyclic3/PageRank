@@ -1,0 +1,33 @@
+//I translated the psudocode from https://en.wikipedia.org/wiki/Quicksort#Lomuto_partition_scheme, and then applied some custom parallelisation
+let quicksort(arr:'a[]) =
+    ///The swap function for quicksort
+    let swap(a:'a[],i:int,j:int) = let k = a.[i] in a.[i] <- a.[j]; a.[j] <- k
+    let rec partition(a:'a[],lo,hi) =
+        let pivot = a.[hi]
+        let mutable i = lo
+        for j = lo to hi-1 do
+            if a.[j] >= pivot then
+                swap(a,i,j)
+                i <- i + 1
+        swap(a,i,hi)
+        i
+    let n = ref 0
+    let rec quicksort (a:'a[],lo,hi) =
+        if lo < hi then
+            System.Threading.Interlocked.Increment(n)|>ignore
+            System.Threading.Interlocked.Increment(n)|>ignore
+            let p = partition(a,lo,hi)
+            async{quicksort(a,lo,p-1);System.Threading.Interlocked.Decrement(n)|>ignore}|>Async.Start
+            async{quicksort(a,p+1,hi);System.Threading.Interlocked.Decrement(n)|>ignore}|>Async.Start
+    quicksort(arr,0,arr.Length-1)
+    //Wait until there are no more jobs left
+    while !n>0 do ()
+    arr
+//--------------------------------------------------------------------------------------------------
+let a = Array.zeroCreate 10000
+System.Security.Cryptography.RandomNumberGenerator.Create().GetBytes(a)
+let old = Array.copy a
+#time "on"
+quicksort(a)|>ignore
+#time "off"
+printfn "%A->%A"old a
