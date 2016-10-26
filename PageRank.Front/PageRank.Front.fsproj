@@ -21,23 +21,10 @@
     <Externalconsole>true</Externalconsole>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.1\Framework\v4.0\Microsoft.FSharp.Targets" />
-  <ItemGroup>
-    <ProjectReference Include="..\PageRank.fsproj">
-      <Project>{0872C1C3-3BA5-4CEA-91E4-2C63B9E3AF22}</Project>
-      <Name>PageRank</Name>
-    </ProjectReference>
-  </ItemGroup>
   <ItemGroup>
     <None Include="index.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -48,5 +35,23 @@
     <None Include="db.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="FSharp.Core">
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="Core">
+      <HintPath>Core\bin\Debug\Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Web" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PageRank.fsproj">
+      <Project>{0872C1C3-3BA5-4CEA-91E4-2C63B9E3AF22}</Project>
+      <Name>PageRank</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>

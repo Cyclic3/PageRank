@@ -3,4 +3,10 @@
 /home/harlan/PageRank/bin/Debug/PageRank.exe
 /home/harlan/PageRank/obj/Debug/PageRank.exe
 /home/harlan/PageRank/obj/Debug/PageRank.exe.mdb
+/home/harlan/PageRank/bin/Debug/mscorlib.dll
+/home/harlan/PageRank/bin/Debug/FSharp.Core.dll
+/home/harlan/PageRank/bin/Debug/System.dll
+/home/harlan/PageRank/bin/Debug/System.Numerics.dll
+/home/harlan/PageRank/bin/Debug/System.Xml.Linq.dll
 /home/harlan/PageRank/bin/Debug/FSharp.Data.dll
+/home/harlan/PageRank/bin/Debug/System.Web.dll

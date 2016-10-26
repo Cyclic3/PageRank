@@ -32,15 +32,24 @@
 		<table>
 			<tr>
 				<form method="post" action="admin/delete">
-					<td color="red">Delete:</td>
+					<td style="color:red">Delete:</td>
 					<td><input type="text" placeholder="Page" name="query"></td>
 					<td> </td>
 					<td><input type="submit"></td>
 				</form>
 			</tr>
 			<tr>
+				<form method="post" action="admin/crawleradd">
+					<td style="color:red">Add:</td>
+					<td><textarea rows="8" name="eps" placeholder="Endpoints"></textarea></td>
+					<td> </td>
+					<td><input type="submit"></td>
+				</form>
+			</tr>
+			<tr> </tr>
+			<tr>
 				<form method="post" action="admin/authenticate">
-					<td color="red">Authenticate:</td>
+					<td style="color:red">Authenticate:</td>
 					<td><input type="text" placeholder="Key" name="g1"></td>
 					<td><input type="text" placeholder="Code" name="g2"></td>
 					<td><input type="submit"></td>

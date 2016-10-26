@@ -2,13 +2,11 @@
 // See the 'F# Tutorial' project for more help.
 open PageRank
 open PageRank.IPC
-open FSharp.Data
 [<EntryPoint>]
 let main argv = 
     let p1 = new System.Net.Sockets.TcpListener(System.Net.IPEndPoint(System.Net.IPAddress.Any,int argv.[0]))      //IO.Pipes.NamedPipeClientStream(argv.[0])
     //let ep = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback,int argv.[1])
     p1.Start()
-    let v = System.Net.IPEndPoint(0L,0) |> ref
     System.Console.Title <- sprintf "Crawler %s" argv.[0]
     printfn "Crawler %s ready" argv.[0]
     while true do 

@@ -1,0 +1,3 @@
+[submodule "PageRank.Front/Core"]
+	path = Core
+	url = git@github.com:C-Omega/Core.git

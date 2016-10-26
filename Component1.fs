@@ -1,4 +1,7 @@
 ﻿namespace PageRank 
+open C_Omega
+open C_Omega.Helpers
+open C_Omega.ArraySliceImprovement
 module IPC = 
     let mutable CrawlerLocation = "../../../Crawler/bin/Debug/Crawler.exe"  //"~/PageRank/Crawler/bin/Debug/Crawler.exe"
     type Crawler = System.Net.IPEndPoint
@@ -198,9 +201,8 @@ module Agents =
                 inner(uri)
             }
         a,e'//a,e'
-    let crawlers_get_depth(start:string,crawlers:Crawler[], pages:System.Collections.Generic.Dictionary<string,string[]*string>, depth:int64) = 
+    let crawlers_get_depth(start:string,crawlers:Crawler[], pages:System.Collections.Generic.Dictionary<string,string[]*string>, depth:int64 ref) = 
         let d = System.Collections.Generic.HashSet(pages.Keys)
-        let depth = ref depth
         let free = System.Collections.Generic.Queue(crawlers)
         let get_free f = 
             let rec crawler = lock free (fun () -> while free.Count = 0 do () done;free.Dequeue())
@@ -268,8 +270,12 @@ module Front =
     open System.Net
     open System.Net.Sockets
     open Agents
-    let WebServer crawlers (localep:IPEndPoint) =
+    let WebServer (crawlers:IPC.Crawler[]) (localep:IPEndPoint) =
+        let crawlers' = ResizeArray(crawlers)//THis means we can add some crawlers!
         let i = new TcpListener(localep)
+        do
+            i.Server.ReceiveTimeout <- 1000
+            i.Server.SendTimeout <- 10000
         let requests = new System.Collections.Generic.Dictionary<string*string,unit->string option>()
         i.Start()
         let get_string b = System.Text.Encoding.UTF8.GetString b |> (fun s -> s.Replace("\r",""))
@@ -305,155 +311,201 @@ module Front =
                 |> ref
             with |e -> printfn "WARNING!!!\nCORRUPTED pr.nsv!\n%A" e;ref [||]
         while true do
-            let r = i.AcceptTcpClient()
-            let s = r.GetStream()
-            let v = ref null
-            async{
-                let str = 
+            try
+                spinuntil i.Pending
+                printf "Connecting... "
+                let callback = System.AsyncCallback(fun r' ->
+                    let r = unbox<TcpClient> r'
+                    r.ReceiveTimeout <- 1000
+                    r.SendTimeout <- 10000
+                    printfn "done!"
+                    let s = r.GetStream()
+                    let v = ref null
+                    let str = 
+                        try
+                            let crawlers = crawlers'.ToArray()//Take a snapshot, so we don't have to worry about locks
+                            let head,body = read r |> get_parts
+                            v:=head
+                            let verb,path = 
+                                let init = head.[..head.IndexOf '\n']
+                                let i = init.IndexOf ' '
+                                init.[..i-1],init.[i+1..init.IndexOf(' ',i+1)-1]
+                            match verb with
+                            |"GET" ->
+                                match path with
+                                |"/"
+                                |"/index.html" -> 
+                                    let body = System.IO.File.ReadAllText("index.html")
+                                    //let head,body = get_parts page
+                                    let body_replacements = ["%acc.Count%",string acc.Count]
+                                    let body' = replace_all(body,body_replacements)
+                                    //let head_replacements = ["%Content-Length%",string body'.Length]
+                                    //replace_all(head,head_replacements)+"\n\n"+body'
+                                    body'
+                                    |> get_bytes
+                                    |> Some
+                                |"/db.html" ->
+                                    let body = System.IO.File.ReadAllText("db.html")
+                                    //let head,body = get_parts page
+                                    let body_replacements = ["%acc.Count%",string acc.Count]
+                                    let body' = replace_all(body,body_replacements)
+                                    //let head_replacements = ["%Content-Length%",string body'.Length]
+                                    //replace_all(head,head_replacements)+"\n\n"+body'
+                                    body'
+                                    |> get_bytes
+                                    |> Some
+                                |"/grab/acc.nsv" -> System.IO.File.ReadAllBytes "acc.nsv"|>Some
+                                |"/grab/pr.nsv" -> System.IO.File.ReadAllBytes "pr.nsv"|>Some
+                                |s                   -> "Not a valid GET page: " + s |> get_bytes|>Some
+                            |"POST" ->
+                                match path with
+                                |"/query"            -> 
+                                    let form = get_posts body
+                                    let q = form.["query"]
+                                    get_n (fun (uri,s:string) -> s.Contains(q.ToLower())) 10 !pr
+                                    |> Seq.fold (fun acc (url,page) -> acc + (sprintf "<a href='%s'>%s</a><br>" url url)) ""
+                                    |> fun i -> if i.Length = 0 then "<h1>No results</h1>!" else i
+                                    |> get_bytes
+                                    |> Some
+                                |"/index"            ->
+                                    let s = new System.Diagnostics.Stopwatch()
+                                    let elapsed() = s.Elapsed.ToString("dd\:hh\:mm\:ss\.FFF")
+                                    Array.append (System.IO.File.ReadAllBytes("header.txt")) "\nTransfer-Encoding: chunked\n\n"B |> write r
+                                    let say s = 
+                                        let b = s + " [" + elapsed() + "]" + "<br>" |> get_bytes
+                                        System.Convert.ToString(b.Length,16)+"\r\n" |> get_bytes |> write r
+                                        "\r\n"B |> Array.append b |> write r
+                                    s.Start()
+                                    let form = get_posts body
+                                    let q = form.["query"]
+                                    let startDepth = int64 form.["depth"]
+                                    let currentDepth = ref startDepth
+                                    say "Crawling started!"
+                                    let caught = ref !currentDepth
+                                    async{
+                                        do! Async.SwitchToNewThread()
+                                        while !currentDepth > 0L do 
+                                            if !caught <> !currentDepth && !currentDepth % 10L = 0L then 
+                                                caught := !currentDepth
+                                                let d = startDepth - !currentDepth
+                                                sprintf "%i of %i (%g%%)" d startDepth ((float d / float startDepth)*100.)
+                                                |> say
+                                    }
+                                    |> Async.Start
+                                    crawlers_get_depth(q,crawlers,acc,currentDepth)
+                                    say "Done!<br>Use refresh to integrate it into the program"
+                                    write r "0\r\n\r\n"B
+                                    None
+                                |"/db/rank" ->
+                                    let form = get_posts body
+                                    let q = form.["query"].ToLower()
+                                    Seq.findIndex(fun (q':string,_) -> q'.ToLower() = q) !pr
+                                    |> sprintf "%s is at position %i/%i" q
+                                    <|pr.Value.Length
+                                    |> string
+                                    |> get_bytes
+                                    |> Some
+                                |"/db/get" ->
+                                    let form = get_posts body
+                                    let q = form.["query"].ToLower()
+                                    match Array.tryPick(fun (q':string,s:string) -> if q'.ToLower() = q then Some s else None) !pr with
+                                    |None    -> "<h1>No page was found wth that url</h1>"
+                                    |Some(v) -> v
+
+                                    |> get_bytes
+                                    |> Some
+                                |"/user/refresh" ->
+                                    let s = new System.Diagnostics.Stopwatch()
+                                    let elapsed() = s.Elapsed.ToString("dd\:hh\:mm\:ss\.FFF")
+                                    Array.append (System.IO.File.ReadAllBytes("header.txt")) "\nTransfer-Encoding: chunked\n\n"B |> write r
+                                    let say s = 
+                                        let b = s + " [" + elapsed() + "]" + "<br>" |> get_bytes
+                                        System.Convert.ToString(b.Length,16)+"\r\n" |> get_bytes |> write r
+                                        "\r\n"B |> Array.append b |> write r
+                                    s.Start()
+                                    let map = Seq.zip acc.Keys acc.Values|>Map.ofSeq |> side (fun _ -> say "Zipped")
+                                    PageRank(map,10)|> side (fun _ -> say "Ranked")
+                                    |> Map.toArray |> side (fun _ -> say "Arrayed")
+                                    |> Array.Parallel.map (fun (i,(j,k)) -> i,j,System.Web.HttpUtility.HtmlDecode(k)) |> side (fun _ -> say "Decoded")
+                                    |> quicksort (fun(i,j,k) -> j) |> side (fun _ -> say "Sorted")
+                                    |> Array.Parallel.map (fun(i,j,k) -> i,k.ToLower()) |> side (fun _ -> say "Lowered")
+                                    |> fun i -> pr := i |> side (fun _ -> say "Updated")
+                                    //It gets REALLY annoying when I have to wait around for it to load ALL the pages again, so I am going to make it persist on disk.
+                                    (
+                                        let data = 
+                                            Array.Parallel.map(fun (kvp:System.Collections.Generic.KeyValuePair<_,_>) -> 
+                                                let key,(a,b) = kvp.Key,kvp.Value
+                                                "\x01" + key + "\x00" + String.concat "," a + "\x00" + b
+                                            ) <| Array.ofSeq acc
+                                            |> side (fun _ -> say "Disk 1 map")
+                                            |> System.String.Concat |> side (fun _ -> say "Disk 1 concat")
+                                        System.IO.File.WriteAllText("acc.nsv",data) |> side (fun _ -> say "Disk 1 write")
+                                    )
+                                    (
+                                        let data = 
+                                            Array.Parallel.map(fun (key,value) -> 
+                                                "\x01" + key + "\x00" + value
+                                            ) !pr
+                                            |> side (fun _ -> say "Disk 2 map")
+                                            |> System.String.Concat |> side (fun _ -> say "Disk 2 concat")
+                                        System.IO.File.WriteAllText("pr.nsv",data) |> side (fun _ -> say "Disk 2 write")
+                                    )
+                                    write r "0\r\n\r\n"B
+                                    None
+                                    //sprintf "Done in %s" (s.Elapsed.ToString("dd\:hh\:mm\:ss\.FFF"))
+                                |"/admin/authenticate" ->
+                                    let form = get_posts body
+                                    let g1 = form.["g1"]
+                                    let g2 = form.["g2"]
+                                    match requests.TryGetValue((g1,g2)) with
+                                    |false,_ -> Some "Bad code or key"
+                                    |true,v  -> v()
+
+                                    |> Option.map get_bytes
+                                |"/admin/delete" ->
+                                    let g1 = System.Guid.NewGuid().ToString() |> side (printfn "Key: %A")
+                                    let g2 = System.Guid.NewGuid().ToString()
+                                    let q = get_posts(body).["query"].ToLower()
+                                    requests.Add((g1,g2),(fun() -> 
+                                        if acc.Remove(q) then sprintf "Successfully removed %A from acc" q 
+                                        else sprintf "Failed to remove %A from acc" q
+
+                                        |>Some
+                                        ))
+                                    "Code: " + g2 
+                                    |> get_bytes
+                                    |> Some
+                                |"/admin/crawleradd" ->
+                                    let g1 = System.Guid.NewGuid().ToString() |> side (printfn "Key: %A")
+                                    let g2 = System.Guid.NewGuid().ToString()
+                                    let posts = get_posts(body)
+                                    let eps = posts.["eps"]
+                                    requests.Add((g1,g2),(fun() -> 
+                                        eps.Replace("\r","").Split('\n')
+                                        |> Array.Parallel.map(fun (s:string) -> 
+                                            let i = s.LastIndexOf ':'
+                                            ep (ip s.[..i-1]) (int s.[i+1..])
+                                            |> side crawlers'.Add
+                                        )
+                                        |> sprintf "Added crawlers %A"
+                                        |> Some
+                                        ))
+                                    "Code: " + g2 
+                                    |> get_bytes
+                                    |> Some
+                                |s -> "Not a valid POST page: " + s |> get_bytes |> Some
+                            |s                   -> "Not a valid verb: " + s |> get_bytes |> Some
+                        with 
+                        |e -> sprintf "There was an error processing your request: <br>%A<br><br>%A" !v e |> get_bytes |> Some
                     try
-                        let head,body = read r |> get_parts
-                        v:=head
-                        let verb,path = 
-                            let init = head.[..head.IndexOf '\n']
-                            let i = init.IndexOf ' '
-                            init.[..i-1],init.[i+1..init.IndexOf(' ',i+1)-1]
-                        match verb with
-                        |"GET" ->
-                            match path with
-                            |"/"
-                            |"/index.html" -> 
-                                let body = System.IO.File.ReadAllText("index.html")
-                                //let head,body = get_parts page
-                                let body_replacements = ["%acc.Count%",string acc.Count]
-                                let body' = replace_all(body,body_replacements)
-                                //let head_replacements = ["%Content-Length%",string body'.Length]
-                                //replace_all(head,head_replacements)+"\n\n"+body'
-                                body'
-                                |> get_bytes
-                                |> Some
-                            |"/db.html" ->
-                                let body = System.IO.File.ReadAllText("db.html")
-                                //let head,body = get_parts page
-                                let body_replacements = ["%acc.Count%",string acc.Count]
-                                let body' = replace_all(body,body_replacements)
-                                //let head_replacements = ["%Content-Length%",string body'.Length]
-                                //replace_all(head,head_replacements)+"\n\n"+body'
-                                body'
-                                |> get_bytes
-                                |> Some
-                            |"/grab/acc.nsv" -> System.IO.File.ReadAllBytes "acc.nsv"|>Some
-                            |"/grab/pr.nsv" -> System.IO.File.ReadAllBytes "pr.nsv"|>Some
-                            |s                   -> "Not a valid GET page: " + s |> get_bytes|>Some
-                        |"POST" ->
-                            match path with
-                            |"/query"            -> 
-                                let form = get_posts body
-                                let q = form.["query"]
-                                get_n (fun (uri,s:string) -> s.Contains(q.ToLower())) 10 !pr
-                                |> Seq.fold (fun acc (url,page) -> acc + (sprintf "<a href='%s'>%s</a><br>" url url)) ""
-                                |> fun i -> if i.Length = 0 then "<h1>No results</h1>!" else i
-                                |> get_bytes
-                                |> Some
-                            |"/index"            ->
-                                let form = get_posts body
-                                let q = form.["query"]
-                                let currentDepth = int64 form.["depth"]
-                                crawlers_get_depth(q,crawlers,acc,currentDepth)|>say "Crawled"
-                                "Done!<br>Use refresh to integrate it into the program"B
-                                |> Some
-                            |"/db/rank" ->
-                                let form = get_posts body
-                                let q = form.["query"].ToLower()
-                                Seq.findIndex(fun (q':string,_) -> q'.ToLower() = q) !pr
-                                |> sprintf "%s is at position %i/%i" q
-                                <|pr.Value.Length
-                                |> string
-                                |> get_bytes
-                                |> Some
-                            |"/db/get" ->
-                                let form = get_posts body
-                                let q = form.["query"].ToLower()
-                                match Array.tryPick(fun (q':string,s:string) -> if q'.ToLower() = q then Some s else None) !pr with
-                                |None    -> "<h1>No page was found wth that url</h1>"
-                                |Some(v) -> v
-
-                                |> get_bytes
-                                |> Some
-                            |"/user/refresh" ->
-                                let s = new System.Diagnostics.Stopwatch()
-                                let elapsed() = s.Elapsed.ToString("dd\:hh\:mm\:ss\.FFF")
-                                Array.append (System.IO.File.ReadAllBytes("header.txt")) "\nTransfer-Encoding: chunked\n\n"B |> write r
-                                let say s a = 
-                                    let b = s + " [" + elapsed() + "]" + "<br>"|> get_bytes
-                                    System.Convert.ToString(b.Length,16)+"\r\n"|>get_bytes|>write r
-                                    "\r\n"B |> Array.append b |> write r
-                                    a
-                                s.Start()
-                                PageRank(Seq.zip acc.Keys acc.Values|>Map.ofSeq,10)|> say "Ranked"
-                                |> Map.toArray |> say "Arrayed"
-                                |> Array.Parallel.map (fun (i,(j,k)) -> i,j,System.Web.HttpUtility.HtmlDecode(k)) |> say "Decoded"
-                                |> quicksort (fun(i,j,k) -> j) |> say "Sorted"
-                                |> Array.Parallel.map (fun(i,j,k) -> i,k.ToLower()) |> say "Lowered"
-                                |> fun i -> pr := i |> say "Updated"
-                                //It gets REALLY annoying when I have to wait around for it to load ALL the pages again, so I am going to make it persist on disk.
-                                (
-                                    let data = 
-                                        Array.Parallel.map(fun (kvp:System.Collections.Generic.KeyValuePair<_,_>) -> 
-                                            let key,(a,b) = kvp.Key,kvp.Value
-                                            "\x01" + key + "\x00" + String.concat "," a + "\x00" + b
-                                        ) <| Array.ofSeq acc
-                                        |> say "Disk 1 map"
-                                        |> System.String.Concat |> say "Disk 1 concat"
-                                    System.IO.File.WriteAllText("acc.nsv",data) |> say "Disk 1 write"
-                                )
-                                (
-                                    let data = 
-                                        Array.Parallel.map(fun (key,value) -> 
-                                            "\x01" + key + "\x00" + value
-                                        ) !pr
-                                        |> say "Disk 2 map"
-                                        |> System.String.Concat |> say "Disk 2 concat"
-                                    System.IO.File.WriteAllText("pr.nsv",data) |> say "Disk 2 write"
-                                )
-                                write r "0\r\n\r\n"B
-                                None
-                                //sprintf "Done in %s" (s.Elapsed.ToString("dd\:hh\:mm\:ss\.FFF"))
-                            |"/admin/authenticate" ->
-                                let form = get_posts body
-                                let g1 = form.["g1"]
-                                let g2 = form.["g2"]
-                                match requests.TryGetValue((g1,g2)) with
-                                |false,_ -> Some "Bad code or key"
-                                |true,v  -> v()
-
-                                |> Option.map get_bytes
-                            |"/admin/delete" ->
-                                let g1 = System.Guid.NewGuid().ToString() |> side (printfn "Key: %A")
-                                let g2 = System.Guid.NewGuid().ToString()
-                                let q = get_posts(body).["query"].ToLower()
-                                requests.Add((g1,g2),(fun() -> 
-                                    if acc.Remove(q) then sprintf "Successfully removed %A from acc" q 
-                                    else sprintf "Failed to remove %A from acc" q
-
-                                    |>Some
-                                    ))
-                                "Code: " + g2 
-                                |> get_bytes
-                                |> Some
-                            |s -> "Not a valid POST page: " + s |> get_bytes |> Some
-                        |s                   -> "Not a valid verb: " + s |> get_bytes |> Some
-                    with 
-                    |e -> sprintf "There was an error processing your request: <br>%A<br><br>%A" !v e |> get_bytes |> Some
-                try
-                    if str.IsSome then
-                        Array.append "\n\n"B str.Value
-                        |> Array.append (System.IO.File.ReadAllBytes("header.txt"))
-                        |> write r
-                finally
-                r.Close()
-            }
-            |>Async.Start
-
+                        if str.IsSome then
+                            Array.append "\n\n"B str.Value
+                            |> Array.append (System.IO.File.ReadAllBytes("header.txt"))
+                            |> write r
+                    finally
+                    r.Close()
+                )
+            with |e -> printfn "ESCAPED!!!\n%A" e
         (*
     let HTMLagent(uri:string,t:System.Threading.CancellationToken,crawler:Crawler) = 
         let e = new Event<string*string[]>()

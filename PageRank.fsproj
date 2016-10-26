@@ -45,6 +45,9 @@
     <Reference Include="System.Web">
       <Private>True</Private>
     </Reference>
+    <Reference Include="Core">
+      <HintPath>Core\bin\Debug\Core.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
