@@ -3,8 +3,3 @@
 /home/harlan/PageRank/PageRank.Front/bin/Release/PageRank.exe
 /home/harlan/PageRank/PageRank.Front/bin/Release/mscorlib.dll
 /home/harlan/PageRank/PageRank.Front/bin/Release/Core.dll
-/home/harlan/PageRank/PageRank.Front/bin/Release/index.html
-/home/harlan/PageRank/PageRank.Front/bin/Release/header.txt
-/home/harlan/PageRank/PageRank.Front/bin/Release/db.html
-/home/harlan/PageRank/PageRank.Front/bin/Release/PageRank.Front.exe
-/home/harlan/PageRank/PageRank.Front/obj/Release/PageRank.Front.exe
