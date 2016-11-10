@@ -2,3 +2,4 @@
 /home/harlan/PageRank/PageRank.Runtime/bin/Release/PageRank.Runtime.exe
 /home/harlan/PageRank/PageRank.Runtime/obj/Release/PageRank.Runtime.exe
 /home/harlan/PageRank/PageRank.Runtime/bin/Release/PageRank.exe
+/home/harlan/PageRank/PageRank.Runtime/bin/Release/Core.dll

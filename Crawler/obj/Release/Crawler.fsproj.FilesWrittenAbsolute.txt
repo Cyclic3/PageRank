@@ -2,3 +2,5 @@
 /home/harlan/PageRank/Crawler/bin/Release/Crawler.exe
 /home/harlan/PageRank/Crawler/obj/Release/Crawler.exe
 /home/harlan/PageRank/Crawler/bin/Release/PageRank.exe
+/home/harlan/PageRank/Crawler/bin/Release/System.Web.dll
+/home/harlan/PageRank/Crawler/bin/Release/Core.dll
