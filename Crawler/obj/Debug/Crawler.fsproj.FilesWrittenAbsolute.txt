@@ -6,3 +6,4 @@
 /home/harlan/PageRank/Crawler/bin/Debug/PageRank.exe
 /home/harlan/PageRank/Crawler/bin/Debug/PageRank.exe.mdb
 /home/harlan/PageRank/Crawler/bin/Debug/System.Web.dll
+/home/harlan/PageRank/Crawler/bin/Debug/Core.dll

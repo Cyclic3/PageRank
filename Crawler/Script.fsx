@@ -20,3 +20,10 @@ read pipe2 |> extract |> printfn "%A"
 let a = new System.IO.Pipes.NamedPipeServerStream("B")
 a.WaitForConnection()
 while true do a.ReadByte()
+let v = new System.Collections.Hashtable()
+v.
+for i in v do i.
+let wo i =
+    let v' = (v.Clone():?>System.Collections.Hashtable)
+    v'.Remove i
+    v'

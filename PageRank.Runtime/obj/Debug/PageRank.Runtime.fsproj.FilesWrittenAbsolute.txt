@@ -5,3 +5,4 @@
 /home/harlan/PageRank/PageRank.Runtime/obj/Debug/PageRank.Runtime.exe.mdb
 /home/harlan/PageRank/PageRank.Runtime/bin/Debug/PageRank.exe
 /home/harlan/PageRank/PageRank.Runtime/bin/Debug/PageRank.exe.mdb
+/home/harlan/PageRank/PageRank.Runtime/bin/Debug/Core.dll

@@ -35,6 +35,7 @@ let main argv =
             printfn "done [%A]" ip.[0]
             printf "\tConnecting to %A..." ip.[0]
             let client = new System.Net.Sockets.TcpClient()
+            client.Client.ReceiveBufferSize <- 67108864
             remote.SendTimeout <- 5000
             client.ReceiveTimeout <- 5000
             let getn,stream = 

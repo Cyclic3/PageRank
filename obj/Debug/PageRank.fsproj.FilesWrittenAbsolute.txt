@@ -10,3 +10,4 @@
 /home/harlan/PageRank/bin/Debug/System.Xml.Linq.dll
 /home/harlan/PageRank/bin/Debug/FSharp.Data.dll
 /home/harlan/PageRank/bin/Debug/System.Web.dll
+/home/harlan/PageRank/bin/Debug/Core.dll

@@ -60,7 +60,13 @@ module Core =
         //The damping factor. According to wikipedia, there is an 85% chance that a client will stop at any hyperlink level.
         let d = 0.85
         let iter = ref 10000
-        let rec rank : string * Map<string,string[]*string> * int -> Rank = function
+        let hs = new System.Collections.Hashtable()
+        for i in pages do hs.Add(i.Key,i.Value)
+        let wo i =
+            let v' = (hs.Clone():?>System.Collections.Hashtable)
+            v'.Remove i
+            v'
+        let rec rank : string * System.Collections.Hashtable * int -> Rank = function
             |_,_,0 -> 1. //This is the initial value. 'All pages are created equal' or something...
             |pi,p,t ->
                 let v = 
@@ -68,17 +74,17 @@ module Core =
                         |pj,([||],s) ->
                             rank(                   //Rank:
                                 pj,                 //relative to the page 'pj'
-                                pages.Remove pj,    //look through everything but pj
+                                wo pj,              //look through everything but pj
 
                                 t-1                 //Decrement the iteration count
                             )
-                        |pj,(i,s) -> if Array.contains pi i then rank(pj, pages.Remove pj, t-1) / (float(i.Length)) else 0.
-                    Array.Parallel.map (fun i -> async{return f i})<| Map.toArray p //This seems to be faster than running it all under 1 parallel (by about 9x)
+                        |pj,(i,s) -> if Array.contains pi i then rank(pj, wo pj, t-1) / (float(i.Length)) else 0.
+                    Array.Parallel.map (fun i -> async{return f i})<| (Seq.zip (Seq.cast<obj> p.Keys |> Seq.map unbox<string>) (Seq.cast<obj> p.Values |> Seq.map unbox<string[]*string>) |> Array.ofSeq) //This seems to be faster than running it all under 1 parallel (by about 9x)
                     |> Async.Parallel
                     |> Async.RunSynchronously
                     |> Array.sum
                 (1. - d) + (d * v)
-        Array.Parallel.map (fun (i,(_,s)) -> i,(rank(i, Map.remove i pages, max),s)) (Map.toArray pages) |> Map.ofArray
+        Array.Parallel.map (fun (i,(_,s)) -> i,(rank(i, wo i, max),s)) (Map.toArray pages) |> Map.ofArray
     //A quick function to iterate through lists, and taking the first n to fit a function
     let get_n f n s = 
         let rec inner = function
@@ -93,6 +99,7 @@ module Agents =
     let rec crawler_get(uri:string,crawler:Crawler) = 
         let client = new System.Net.Sockets.TcpClient()
         client.Connect crawler
+        client.Client.ReceiveBufferSize <- 67108864
         let b = System.Text.Encoding.UTF8.GetBytes uri
         client.GetStream().Write(b,0,b.Length)
         while client.Available = 0 do ()
@@ -419,11 +426,13 @@ module Front =
                                     let elapsed() = s.Elapsed.ToString("dd\:hh\:mm\:ss\.FFF")
                                     Array.append (System.IO.File.ReadAllBytes("header.txt")) "\nTransfer-Encoding: chunked\n\n"B |> write r
                                     let say s = 
+                                        printfn "%s [%s]" s (elapsed())
                                         let b = s + " [" + elapsed() + "]" + "<br>" |> get_bytes
                                         System.Convert.ToString(b.Length,16)+"\r\n" |> get_bytes |> write r
                                         "\r\n"B |> Array.append b |> write r
                                     s.Start()
                                     let map = Seq.zip acc.Keys acc.Values|>Map.ofSeq |> side (fun _ -> say "Zipped")
+                                    say "Ranking..."
                                     PageRank(map,6)|> side (fun _ -> say "Ranked")
                                     |> Map.toArray |> side (fun _ -> say "Arrayed")
                                     |> Array.Parallel.map (fun (i,(j,k)) -> i,j,System.Web.HttpUtility.HtmlDecode(k)) |> side (fun _ -> say "Decoded")
